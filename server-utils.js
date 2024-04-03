@@ -13,7 +13,9 @@ async function signUp(name, username, email, hashedPassword) {
 
 async function findUserByEmail(email) {
   try {
-    const user = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    const user = await db.query("SELECT * FROM users WHERE email = $1", [
+      email,
+    ]);
     return user.rows[0];
   } catch (error) {
     console.error("Errore nella ricerca dell'utente: ", error);
@@ -23,7 +25,9 @@ async function findUserByEmail(email) {
 async function findUserById(id) {
   try {
     const user = await db.query("SELECT * FROM users WHERE id = $1", [id]);
-    return user.rows[0];
+    if (user.rows[0]) {
+      return user.rows[0];
+    }
   } catch (error) {
     console.error("Errore nella ricerca dell'utente: ", error);
   }

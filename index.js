@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import pg from "pg";
 import passport from "passport";
 import session from "express-session";
-import LocalStrategy from "passport-local";
 import JWTStrategy from "passport-jwt";
 import cors from "cors";
 import jwt from "jsonwebtoken";
@@ -49,27 +48,18 @@ passport.serializeUser((user, done) => {
   done(null, user.id);
 });
 
-passport.deserializeUser((id, done) => {
-  const user = findUserById(id);
-  done(null, user);
-});
-
-passport.use(
-  "local",
-  new LocalStrategy(
-    { usernameField: "email", passwordField: "password" },
-    async (email, password, done) => {
-      const user = await findUserByEmail(email);
-      if (!user) {
-        return done(null, false);
-      }
-      if (!bcrypt.compareSync(password, user.password)) {
-        return done(null, false);
-      }
-      return done(null, user);
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await findUserById(id);
+    if (user) {
+      done(null, user);
+    } else {
+      done(new Error("User not found"));
     }
-  )
-);
+  } catch (error) {
+    done(error);
+  }
+});
 
 passport.use(
   "jwt",
@@ -78,9 +68,9 @@ passport.use(
       jwtFromRequest: JWTStrategy.ExtractJwt.fromAuthHeaderAsBearerToken(),
       secretOrKey: process.env.JWT_SECRET,
     },
-    (payload, done) => {
+    async (payload, done) => {
       try {
-        const user = findUserById(payload.user.id);
+        const user = await findUserById(payload.user.id);
         if (!user) {
           return done(null, false);
         }
@@ -104,27 +94,51 @@ app.post("/api/signup", (req, res) => {
   }
 });
 
-app.post("/api/login", passport.authenticate("local"), (req, res) => {
-  const token = jwt.sign({ user: req.user }, process.env.JWT_SECRET, { expiresIn: "1h" });
-  res.status(200).json({ token: token });
+app.post("/api/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await findUserByEmail(email);
+    console.log(user);
+    if (!user) {
+      return res.status(404).json({ message: "Utente non trovato" });
+    }
+
+    if (bcrypt.compareSync(password, user.password)) {
+      const token = jwt.sign({ user }, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+      return res.status(200).json({ token });
+    } else {
+      return res.status(401).json({ message: "Credenziali non valide" });
+    }
+  } catch (error) {
+    return res.status(500).json({ message: "Errore nel login" });
+  }
 });
 
-app.get("/api/user", passport.authenticate("jwt"), (req, res) => {
-  res.status(200).json({ user: req.user });
-});
-
-app.get("/api/logout", (req, res) => {
+app.get("/api/logout", passport.authenticate("jwt"), (req, res) => {
   req.logout();
   res.status(200).json({ message: "Logout effettuato con successo" });
 });
 
-app.get("/api/validateToken", passport.authenticate("jwt", { session: false }), (req, res) => {
-  try {
-    res.status(200).json({ message: "Token valido" });
-  } catch (error) {
-    res.status(401).json({ message: "Token non valido" });
-  }
+app.post("/api/addFavourite", passport.authenticate("jwt"), (req, res) => {
+  const { city } = req.body;
+  console.log(city);
+  res.status(200).json({ message: "Città aggiunta ai preferiti" });
 });
+
+app.get(
+  "/api/validateToken",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    try {
+      res.status(200).json({ message: "Token valido", user: req.user });
+    } catch (error) {
+      res.status(401).json({ message: "Token non valido" });
+    }
+  }
+);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
