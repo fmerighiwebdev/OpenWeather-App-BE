@@ -33,4 +33,42 @@ async function findUserById(id) {
   }
 }
 
-export { signUp, findUserByEmail, findUserById };
+async function insertFavourite(city, userId) {
+  try {
+    await db.query("INSERT INTO favourites (city, user_id) VALUES ($1, $2)", [
+      city,
+      userId,
+    ]);
+  } catch (error) {
+    console.error("Errore nell'inserimento del preferito: ", error);
+  }
+}
+
+async function removeFavourite(id) {
+  try {
+    await db.query("DELETE FROM favourites WHERE id = $1", [id]);
+  } catch (error) {
+    console.error("Errore nella rimozione del preferito: ", error);
+  }
+}
+
+async function getFavourites(userId) {
+  try {
+    const favourites = await db.query(
+      "SELECT * FROM favourites WHERE user_id = $1",
+      [userId]
+    );
+    return favourites.rows;
+  } catch (error) {
+    console.error("Errore nella ricerca dei preferiti: ", error);
+  }
+}
+
+export {
+  signUp,
+  findUserByEmail,
+  findUserById,
+  insertFavourite,
+  removeFavourite,
+  getFavourites,
+};
