@@ -93,6 +93,28 @@ app.post("/api/signup", (req, res) => {
   const { name, username, email, password } = req.body;
   const hashedPassword = bcrypt.hashSync(password, 10);
 
+  if (!name || !username || !email || !password) {
+    return res.status(400).json({ message: "Compila tutti i campi" });
+  }
+  if (password.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "La password deve contenere almeno 6 caratteri" });
+  }
+  if (password.search(/[0-9]/) === -1) {
+    return res
+      .status(400)
+      .json({ message: "La password deve contenere almeno un numero" });
+  }
+  if (password.search(/[A-Z]/) === -1) {
+    return res.status(400).json({
+      message: "La password deve contenere almeno una lettera maiuscola",
+    });
+  }
+  if (email.search(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/) === -1) {
+    return res.status(400).json({ message: "Email non valida" });
+  }
+
   try {
     signUp(name, username, email, hashedPassword);
     res.status(201).json({ message: "Utente creato con successo" });
@@ -144,16 +166,20 @@ app.post("/api/addFavourite", passport.authenticate("jwt"), (req, res) => {
   }
 });
 
-app.delete("/api/removeFavourite/:id", passport.authenticate("jwt"), (req, res) => {
-  const { id } = req.params;
+app.delete(
+  "/api/removeFavourite/:id",
+  passport.authenticate("jwt"),
+  (req, res) => {
+    const { id } = req.params;
 
-  try {
-    removeFavourite(id);
-    res.status(200).json({ message: "Città rimossa dai preferiti" });
-  } catch (error) {
-    res.status(500).json({ message: "Errore nella rimozione della città" });
+    try {
+      removeFavourite(id);
+      res.status(200).json({ message: "Città rimossa dai preferiti" });
+    } catch (error) {
+      res.status(500).json({ message: "Errore nella rimozione della città" });
+    }
   }
-});
+);
 
 app.get(
   "/api/getFavourites",
